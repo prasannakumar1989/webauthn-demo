@@ -1,0 +1,23 @@
+# Go build
+/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+
+# Output of build tools
+/dist/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
