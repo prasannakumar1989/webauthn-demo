@@ -10,17 +10,29 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ory/graceful"
+	"github.com/redis/go-redis/v9"
 )
 
-
 func main() {
-	mainCtx := context.Background() 
+	mainCtx := context.Background()
 
 	// Load config
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+
+	// Initialize Redis
+	redisOpts := &redis.Options{
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
+	}
+	redisClient := redis.NewClient(redisOpts)
+	if err := redisClient.Ping(mainCtx).Err(); err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	defer redisClient.Close()
 
 	// Initialize DB
 	dbpool, err := initDB(mainCtx, cfg)
@@ -43,11 +55,11 @@ func main() {
 
 	// HTTP Server
 	server := graceful.WithDefaults(&http.Server{
-		Addr: ":"+cfg.AppPort,
+		Addr:        ":" + cfg.AppPort,
 		ReadTimeout: cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout: cfg.IdleTimeout,
-		Handler: r,
+		IdleTimeout:  cfg.IdleTimeout,
+		Handler:      r,
 	})
 
 	log.Println("main: Starting the Server")
@@ -58,7 +70,7 @@ func main() {
 }
 
 func initDB(ctx context.Context, cfg *config.Configuration) (*pgxpool.Pool, error) {
-	poolCfg , err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +86,7 @@ func initDB(ctx context.Context, cfg *config.Configuration) (*pgxpool.Pool, erro
 		return nil, err
 	}
 
-    // availability check
+	// availability check
 	if err := dbpool.Ping(ctx); err != nil {
 		dbpool.Close()
 		return nil, err

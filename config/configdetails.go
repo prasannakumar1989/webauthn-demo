@@ -19,6 +19,10 @@ type Configuration struct {
 	DBMaxConnLifetime time.Duration `env:"DB_MAX_CONN_LIFETIME" envDefault:"1h"`
 	DBMaxConnIdleTime time.Duration `env:"DB_MAX_CONN_IDLE_TIME" envDefault:"30m"`
 	DBHealthCheckPeriod time.Duration `env:"DB_HEALTH_CHECK_PERIOD" envDefault:"30s"`
+
+	RedisAddr     string        `env:"REDIS_ADDR" envDefault:"localhost:6379"`
+	RedisPassword string        `env:"REDIS_PASSWORD" envDefault:""`
+	RedisDB       int           `env:"REDIS_DB" envDefault:"0"`
 }
 
 func LoadConfiguration() (*Configuration, error) {
