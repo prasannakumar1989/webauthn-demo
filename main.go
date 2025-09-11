@@ -53,6 +53,7 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+
 	// HTTP Server
 	server := graceful.WithDefaults(&http.Server{
 		Addr:        ":" + cfg.AppPort,

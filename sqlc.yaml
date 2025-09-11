@@ -1,0 +1,9 @@
+version: "2"
+sql:
+  - queries: "db/queries"
+    schema: "db/migrations"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "generatedmodels"
+        out: "generatedmodels"

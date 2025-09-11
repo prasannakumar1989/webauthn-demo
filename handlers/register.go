@@ -1,0 +1,107 @@
+package handlers
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"webauthn-demo/generatedmodels"
+	"webauthn-demo/models"
+
+	"github.com/go-webauthn/webauthn/webauthn"
+)
+
+type RegistrationHandler struct {
+    Queries      *generatedmodels.Queries
+    SessionStore models.SessionStore
+    WebAuthn     *webauthn.WebAuthn
+}
+
+func (h *RegistrationHandler) discoverUser(ctx context.Context, username string) (*models.WAUser, error) {
+    u, err := h.Queries.GetUserByUsername(ctx, username)
+    if err == nil {
+        return &models.WAUser{ID: u.ID, Username: u.Username, DisplayName: u.DisplayName}, nil
+    }
+
+    u, err = h.Queries.CreateUser(ctx, generatedmodels.CreateUserParams{
+        Username:    username,
+        DisplayName: username,
+    })
+    if err != nil {
+        return nil, err
+    }
+    return &models.WAUser{ID: u.ID, Username: u.Username, DisplayName: u.DisplayName}, nil
+}
+
+func (h *RegistrationHandler) BeginRegistration(w http.ResponseWriter, r *http.Request) {
+    var req struct{ Username string }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Username == "" {
+        http.Error(w, "invalid request", http.StatusBadRequest)
+        return
+    }
+
+    waUser, err := h.discoverUser(r.Context(), req.Username)
+    if err != nil {
+        http.Error(w, "failed to find or create user", http.StatusInternalServerError)
+        return
+    }
+
+    options, sessionData, err := h.WebAuthn.BeginRegistration(waUser)
+    if err != nil {
+        http.Error(w, "failed to begin registration", http.StatusInternalServerError)
+        return
+    }
+
+    key := "webauthn:register:" + req.Username
+    if err := h.SessionStore.Save(r.Context(), key, sessionData, 5*time.Minute); err != nil {
+        http.Error(w, "failed to save session", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(options)
+}
+
+func (h *RegistrationHandler) FinishRegistration(w http.ResponseWriter, r *http.Request) {
+    username := r.URL.Query().Get("username")
+    if username == "" {
+        http.Error(w, "username required", http.StatusBadRequest)
+        return
+    }
+
+    waUser, err := h.discoverUser(r.Context(), username)
+    if err != nil {
+        http.Error(w, "failed to fetch user", http.StatusInternalServerError)
+        return
+    }
+
+    key := "webauthn:register:" + username
+    sessionData, err := h.SessionStore.Load(r.Context(), key)
+    if err != nil {
+        http.Error(w, "session expired or missing", http.StatusBadRequest)
+        return
+    }
+
+    cred, err := h.WebAuthn.FinishRegistration(waUser, *sessionData, r)
+    if err != nil {
+        http.Error(w, "failed to finish registration", http.StatusBadRequest)
+        return
+    }
+
+    _ = h.SessionStore.Delete(r.Context(), key)
+
+    _, err = h.Queries.CreateCredential(r.Context(), generatedmodels.CreateCredentialParams{
+        UserID:      waUser.ID,
+        CredentialID: cred.ID,
+        PublicKey:   cred.PublicKey,
+        SignCount:   int32(cred.Authenticator.SignCount),
+    })
+    if err != nil {
+        http.Error(w, "failed to save credential", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"status": "registration successful"})
+}
