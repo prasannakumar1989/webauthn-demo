@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"webauthn-demo/config"
 	"webauthn-demo/generatedmodels"
 	"webauthn-demo/handlers"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ory/graceful"
@@ -19,10 +21,13 @@ import (
 func main() {
 	mainCtx := context.Background()
 
+	// Initialize logger
+	logger := log.New(os.Stdout, "[webauthn-demo] ", log.LstdFlags)
+
 	// Load config
 	cfg, err := config.LoadConfiguration()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		logger.Fatalf("Failed to load config: %v", err)
 	}
 
 	// Initialize redis session store
@@ -31,12 +36,20 @@ func main() {
 	// Initialize DB
 	dbpool, err := initDB(mainCtx, cfg)
 	if err != nil {
-		log.Fatalf("initDB: %v", err)
+		logger.Fatalf("initDB: %v", err)
 	}
 	defer dbpool.Close()
 
 	// router
 	r := chi.NewRouter()
+	r.Use(cors.Handler(cors.Options{
+    	AllowedOrigins:   []string{"http://localhost:8081"}, 
+    	AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+    	AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+    	ExposedHeaders:   []string{"Link"},
+    	AllowCredentials: true,
+    	MaxAge:           300,
+	}))
 	r.Use(middleware.Logger)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		if err := dbpool.Ping(r.Context()); err != nil {
@@ -57,24 +70,27 @@ func main() {
 		RPOrigins: []string{cfg.RPOrigin},
 	})
 	if err != nil {
-		log.Fatalf("Failed to initialize WebAuthn: %v", err)
+		logger.Fatalf("Failed to initialize WebAuthn: %v", err)
 	}
+
 
 	regHandler := &handlers.RegistrationHandler{
 		Queries:      queries,
 		SessionStore: *sessionStore,
 		WebAuthn:     wa,
+		Logger:       logger,
 	}
 	r.Post("/register/begin", regHandler.BeginRegistration)
 	r.Post("/register/finish", regHandler.FinishRegistration)
 
 	loginHandler := &handlers.LoginHandler{
-		Queries: queries,
+		Queries:      queries,
 		SessionStore: *sessionStore,
-		WebAuthn: wa,
+		WebAuthn:     wa,
+		Logger:       logger,
 	}
-
-	r.Post("/login/begin", loginHandler)
+	r.Post("/login/begin", loginHandler.BeginLogin)
+	r.Post("/login/finish", loginHandler.FinishLogin)
 
 
 	// HTTP Server
@@ -86,11 +102,11 @@ func main() {
 		Handler:      r,
 	})
 
-	log.Println("main: Starting the Server")
+	logger.Println("main: Starting the Server")
 	if err := graceful.Graceful(server.ListenAndServe, server.Shutdown); err != nil {
-		log.Fatalln("main: Failed to gracefully shutdown")
+		logger.Fatalln("main: Failed to gracefully shutdown")
 	}
-	log.Println("main: Server was shutdown gracefully")
+	logger.Println("main: Server was shutdown gracefully")
 }
 
 func initDB(ctx context.Context, cfg *config.Configuration) (*pgxpool.Pool, error) {

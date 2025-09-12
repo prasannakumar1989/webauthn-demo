@@ -7,60 +7,92 @@ package generatedmodels
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createCredential = `-- name: CreateCredential :one
-INSERT INTO credentials (user_id, credential_id, public_key, sign_count)
-VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, credential_id, public_key, sign_count, created_at
+INSERT INTO credentials (user_id, credential_id, public_key, sign_count, backup_eligible, backup_state)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, user_id, credential_id, public_key, sign_count, backup_eligible, backup_state, created_at
 `
 
 type CreateCredentialParams struct {
-	UserID       int64
-	CredentialID []byte
-	PublicKey    []byte
-	SignCount    int32
+	UserID         int64
+	CredentialID   []byte
+	PublicKey      []byte
+	SignCount      int32
+	BackupEligible bool
+	BackupState    bool
 }
 
-func (q *Queries) CreateCredential(ctx context.Context, arg CreateCredentialParams) (Credential, error) {
+type CreateCredentialRow struct {
+	ID             int64
+	UserID         int64
+	CredentialID   []byte
+	PublicKey      []byte
+	SignCount      int32
+	BackupEligible bool
+	BackupState    bool
+	CreatedAt      pgtype.Timestamptz
+}
+
+func (q *Queries) CreateCredential(ctx context.Context, arg CreateCredentialParams) (CreateCredentialRow, error) {
 	row := q.db.QueryRow(ctx, createCredential,
 		arg.UserID,
 		arg.CredentialID,
 		arg.PublicKey,
 		arg.SignCount,
+		arg.BackupEligible,
+		arg.BackupState,
 	)
-	var i Credential
+	var i CreateCredentialRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.CredentialID,
 		&i.PublicKey,
 		&i.SignCount,
+		&i.BackupEligible,
+		&i.BackupState,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getCredentialsByUserID = `-- name: GetCredentialsByUserID :many
-SELECT id, user_id, credential_id, public_key, sign_count, created_at 
+SELECT id, user_id, credential_id, public_key, sign_count, backup_eligible, backup_state, created_at 
 FROM credentials WHERE user_id = $1
 `
 
-func (q *Queries) GetCredentialsByUserID(ctx context.Context, userID int64) ([]Credential, error) {
+type GetCredentialsByUserIDRow struct {
+	ID             int64
+	UserID         int64
+	CredentialID   []byte
+	PublicKey      []byte
+	SignCount      int32
+	BackupEligible bool
+	BackupState    bool
+	CreatedAt      pgtype.Timestamptz
+}
+
+func (q *Queries) GetCredentialsByUserID(ctx context.Context, userID int64) ([]GetCredentialsByUserIDRow, error) {
 	rows, err := q.db.Query(ctx, getCredentialsByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Credential
+	var items []GetCredentialsByUserIDRow
 	for rows.Next() {
-		var i Credential
+		var i GetCredentialsByUserIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
 			&i.CredentialID,
 			&i.PublicKey,
 			&i.SignCount,
+			&i.BackupEligible,
+			&i.BackupState,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -71,4 +103,31 @@ func (q *Queries) GetCredentialsByUserID(ctx context.Context, userID int64) ([]C
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCredentialSignCountAndFlags = `-- name: UpdateCredentialSignCountAndFlags :exec
+UPDATE credentials
+SET sign_count = $3,
+    backup_eligible = $4,
+    backup_state = $5
+WHERE user_id = $1 AND credential_id = $2
+`
+
+type UpdateCredentialSignCountAndFlagsParams struct {
+	UserID         int64
+	CredentialID   []byte
+	SignCount      int32
+	BackupEligible bool
+	BackupState    bool
+}
+
+func (q *Queries) UpdateCredentialSignCountAndFlags(ctx context.Context, arg UpdateCredentialSignCountAndFlagsParams) error {
+	_, err := q.db.Exec(ctx, updateCredentialSignCountAndFlags,
+		arg.UserID,
+		arg.CredentialID,
+		arg.SignCount,
+		arg.BackupEligible,
+		arg.BackupState,
+	)
+	return err
 }

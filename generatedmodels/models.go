@@ -9,12 +9,14 @@ import (
 )
 
 type Credential struct {
-	ID           int64
-	UserID       int64
-	CredentialID []byte
-	PublicKey    []byte
-	SignCount    int32
-	CreatedAt    pgtype.Timestamptz
+	ID             int64
+	UserID         int64
+	CredentialID   []byte
+	PublicKey      []byte
+	SignCount      int32
+	CreatedAt      pgtype.Timestamptz
+	BackupState    bool
+	BackupEligible bool
 }
 
 type User struct {

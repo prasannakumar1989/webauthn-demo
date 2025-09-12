@@ -1,4 +1,4 @@
-\restrict jrt6UdU12UjwFP5bd1kMTLaMcNqqDAvkC5ddhTbZd0uRJ8bjYFZBvIzifYacqR2
+\restrict OREAOvJZ8vXGhL7IYG0Z22iLpYF5g6cUYQUGprIxQvn2UVOmQtZEn0GDkRgXaQy
 
 -- Dumped from database version 14.19 (Homebrew)
 -- Dumped by pg_dump version 14.19 (Homebrew)
@@ -28,7 +28,9 @@ CREATE TABLE public.credentials (
     credential_id bytea NOT NULL,
     public_key bytea NOT NULL,
     sign_count integer NOT NULL,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    backup_state boolean DEFAULT false NOT NULL,
+    backup_eligible boolean DEFAULT false NOT NULL
 );
 
 
@@ -157,7 +159,7 @@ ALTER TABLE ONLY public.credentials
 -- PostgreSQL database dump complete
 --
 
-\unrestrict jrt6UdU12UjwFP5bd1kMTLaMcNqqDAvkC5ddhTbZd0uRJ8bjYFZBvIzifYacqR2
+\unrestrict OREAOvJZ8vXGhL7IYG0Z22iLpYF5g6cUYQUGprIxQvn2UVOmQtZEn0GDkRgXaQy
 
 
 --
@@ -165,4 +167,5 @@ ALTER TABLE ONLY public.credentials
 --
 
 INSERT INTO public.schema_migrations (version) VALUES
-    ('20250909201859');
+    ('20250909201859'),
+    ('20250912181938');

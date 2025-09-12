@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebAuthn Demo Test App</title>
+  <script>
+    const API_BASE = 'http://localhost:8080';
+    async function beginRegistration() {
+      const username = document.getElementById('username').value;
+      const res = await fetch(`${API_BASE}/register/begin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      if (!res.ok) return alert('Begin registration failed');
+      const options = await res.json();
+      // Convert base64url to ArrayBuffer for credential creation
+      options.publicKey.challenge = Uint8Array.from(atob(options.publicKey.challenge.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+      options.publicKey.user.id = Uint8Array.from(atob(options.publicKey.user.id.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+      const cred = await navigator.credentials.create(options);
+      finishRegistration(username, cred);
+    }
+
+    async function finishRegistration(username, cred) {
+      const credential = {
+        id: cred.id,
+        rawId: arrayBufferToBase64(cred.rawId),
+        type: cred.type,
+        response: {
+          attestationObject: arrayBufferToBase64(cred.response.attestationObject),
+          clientDataJSON: arrayBufferToBase64(cred.response.clientDataJSON)
+        }
+      };
+      const res = await fetch(`${API_BASE}/register/finish?username=${encodeURIComponent(username)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credential)
+      });
+      if (!res.ok) return alert('Finish registration failed');
+      const result = await res.json();
+      alert(result.status || 'Registration successful');
+    }
+
+    async function beginLogin() {
+      const username = document.getElementById('username').value;
+      const res = await fetch(`${API_BASE}/login/begin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      if (!res.ok) return alert('Begin login failed');
+      const options = await res.json();
+      options.publicKey.challenge = Uint8Array.from(atob(options.publicKey.challenge.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+      options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(c => ({
+        ...c,
+        id: Uint8Array.from(atob(c.id.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0))
+      }));
+      const assertion = await navigator.credentials.get(options);
+      finishLogin(username, assertion);
+    }
+
+    async function finishLogin(username, assertion) {
+      const credential = {
+        id: assertion.id,
+        rawId: arrayBufferToBase64(assertion.rawId),
+        type: assertion.type,
+        response: {
+          authenticatorData: arrayBufferToBase64(assertion.response.authenticatorData),
+          clientDataJSON: arrayBufferToBase64(assertion.response.clientDataJSON),
+          signature: arrayBufferToBase64(assertion.response.signature),
+          userHandle: assertion.response.userHandle ? arrayBufferToBase64(assertion.response.userHandle) : null
+        }
+      };
+      const res = await fetch(`${API_BASE}/login/finish?username=${encodeURIComponent(username)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credential)
+      });
+      if (!res.ok) return alert('Finish login failed');
+      const result = await res.json();
+      alert(result.status || 'Login successful');
+    }
+
+    function arrayBufferToBase64(buffer) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+  </script>
+</head>
+<body>
+  <h1>WebAuthn Registration & Login Test</h1>
+  <input type="text" id="username" placeholder="Username" />
+  <button onclick="beginRegistration()">Register</button>
+  <button onclick="beginLogin()">Login</button>
+</body>
+</html>
