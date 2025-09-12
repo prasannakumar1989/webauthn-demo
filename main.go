@@ -5,12 +5,15 @@ import (
 	"log"
 	"net/http"
 	"webauthn-demo/config"
+	"webauthn-demo/generatedmodels"
+	"webauthn-demo/handlers"
+	"webauthn-demo/models"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ory/graceful"
-	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -22,17 +25,8 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize Redis
-	redisOpts := &redis.Options{
-		Addr:     cfg.RedisAddr,
-		Password: cfg.RedisPassword,
-		DB:       cfg.RedisDB,
-	}
-	redisClient := redis.NewClient(redisOpts)
-	if err := redisClient.Ping(mainCtx).Err(); err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
-	}
-	defer redisClient.Close()
+	// Initialize redis session store
+	sessionStore := models.NewSessionStore(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
 
 	// Initialize DB
 	dbpool, err := initDB(mainCtx, cfg)
@@ -52,6 +46,35 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	
+	queries := generatedmodels.New(dbpool)
+
+	// Initialize WebAuthn
+	wa, err := webauthn.New(&webauthn.Config{
+		RPDisplayName: cfg.RPDisplayName,
+		RPID:          cfg.RPID,
+		RPOrigins: []string{cfg.RPOrigin},
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize WebAuthn: %v", err)
+	}
+
+	regHandler := &handlers.RegistrationHandler{
+		Queries:      queries,
+		SessionStore: *sessionStore,
+		WebAuthn:     wa,
+	}
+	r.Post("/register/begin", regHandler.BeginRegistration)
+	r.Post("/register/finish", regHandler.FinishRegistration)
+
+	loginHandler := &handlers.LoginHandler{
+		Queries: queries,
+		SessionStore: *sessionStore,
+		WebAuthn: wa,
+	}
+
+	r.Post("/login/begin", loginHandler)
 
 
 	// HTTP Server

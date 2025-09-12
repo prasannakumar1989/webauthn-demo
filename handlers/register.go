@@ -41,18 +41,21 @@ func (h *RegistrationHandler) BeginRegistration(w http.ResponseWriter, r *http.R
         return
     }
 
+	// find or create user
     waUser, err := h.discoverUser(r.Context(), req.Username)
     if err != nil {
         http.Error(w, "failed to find or create user", http.StatusInternalServerError)
         return
     }
 
+	// get webauthn credential operations for the user
     options, sessionData, err := h.WebAuthn.BeginRegistration(waUser)
     if err != nil {
         http.Error(w, "failed to begin registration", http.StatusInternalServerError)
         return
     }
 
+	// store session Data in redis for associating completion request
     key := "webauthn:register:" + req.Username
     if err := h.SessionStore.Save(r.Context(), key, sessionData, 5*time.Minute); err != nil {
         http.Error(w, "failed to save session", http.StatusInternalServerError)

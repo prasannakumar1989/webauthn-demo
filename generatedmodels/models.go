@@ -5,7 +5,7 @@
 package generatedmodels
 
 import (
-	"database/sql"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Credential struct {
@@ -14,12 +14,12 @@ type Credential struct {
 	CredentialID []byte
 	PublicKey    []byte
 	SignCount    int32
-	CreatedAt    sql.NullTime
+	CreatedAt    pgtype.Timestamptz
 }
 
 type User struct {
 	ID          int64
 	Username    string
 	DisplayName string
-	CreatedAt   sql.NullTime
+	CreatedAt   pgtype.Timestamptz
 }

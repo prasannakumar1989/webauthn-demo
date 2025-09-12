@@ -23,6 +23,10 @@ type Configuration struct {
 	RedisAddr     string        `env:"REDIS_ADDR" envDefault:"localhost:6379"`
 	RedisPassword string        `env:"REDIS_PASSWORD" envDefault:""`
 	RedisDB       int           `env:"REDIS_DB" envDefault:"0"`
+
+	RPDisplayName string `env:"RP_DISPLAY_NAME" envDefault:"WebAuthnDemo"`
+	RPID string `env:"RP_ID" envDefault:"localhost"`
+	RPOrigin string `env:"RP_ORIGIN" envDefault:"http://localhost:8080"`
 }
 
 func LoadConfiguration() (*Configuration, error) {

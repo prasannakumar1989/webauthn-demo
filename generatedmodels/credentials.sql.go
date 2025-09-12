@@ -23,7 +23,7 @@ type CreateCredentialParams struct {
 }
 
 func (q *Queries) CreateCredential(ctx context.Context, arg CreateCredentialParams) (Credential, error) {
-	row := q.db.QueryRowContext(ctx, createCredential,
+	row := q.db.QueryRow(ctx, createCredential,
 		arg.UserID,
 		arg.CredentialID,
 		arg.PublicKey,
@@ -47,7 +47,7 @@ FROM credentials WHERE user_id = $1
 `
 
 func (q *Queries) GetCredentialsByUserID(ctx context.Context, userID int64) ([]Credential, error) {
-	rows, err := q.db.QueryContext(ctx, getCredentialsByUserID, userID)
+	rows, err := q.db.Query(ctx, getCredentialsByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -66,9 +66,6 @@ func (q *Queries) GetCredentialsByUserID(ctx context.Context, userID int64) ([]C
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
