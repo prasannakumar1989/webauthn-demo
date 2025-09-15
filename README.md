@@ -9,6 +9,10 @@ A demo project implementing WebAuthn registration and login flows with Go (backe
 - PostgreSQL database for users and credentials
 - Frontend for testing registration and login
 
+## Sequence Diagrams
+
+Sequence diagrams for registration and login flows gives a visual representation of steps.
+
 ## Prerequisites
 
 - Go 1.20+
