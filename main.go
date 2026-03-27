@@ -76,7 +76,7 @@ func main() {
 
 	regHandler := &handlers.RegistrationHandler{
 		Queries:      queries,
-		SessionStore: *sessionStore,
+		SessionStore: sessionStore,
 		WebAuthn:     wa,
 		Logger:       logger,
 	}
@@ -85,7 +85,7 @@ func main() {
 
 	loginHandler := &handlers.LoginHandler{
 		Queries:      queries,
-		SessionStore: *sessionStore,
+		SessionStore: sessionStore,
 		WebAuthn:     wa,
 		Logger:       logger,
 	}

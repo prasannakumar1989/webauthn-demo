@@ -9,14 +9,12 @@ import (
 
 	"webauthn-demo/generatedmodels"
 	"webauthn-demo/models"
-
-	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 type RegistrationHandler struct {
-	Queries      *generatedmodels.Queries
-	SessionStore models.SessionStore
-	WebAuthn     *webauthn.WebAuthn
+	Queries      DBQuerier
+	SessionStore SessionStorer
+	WebAuthn     WebAuthnProvider
 	Logger       *log.Logger
 }
 
