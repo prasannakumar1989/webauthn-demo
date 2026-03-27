@@ -15,9 +15,11 @@ Sequence diagrams for registration and login flows gives a visual representation
 
 ## Prerequisites
 
-- Go 1.20+
+- Go 1.24+
 - PostgreSQL
 - Redis
+- [sqlc](https://sqlc.dev/) — generates type-safe Go code from SQL queries
+- [dbmate](https://github.com/amacneil/dbmate) — database migration tool
 - Python 3 (for simple frontend server)
 
 ## Setup
