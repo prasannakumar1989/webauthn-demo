@@ -95,7 +95,7 @@ See `config/configdetails.go` for all supported environment variables.
 ## SQL Migrations
 
 - Migrations are in `db/migrations/`
-- Use `dbmate` or `make migrate` to apply them.
+- Use `make migrate` to apply them.
 
 ## Notes
 
